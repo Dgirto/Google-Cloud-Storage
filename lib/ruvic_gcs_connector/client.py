@@ -119,7 +119,7 @@ class GcsClient:
             GcsAuthError / GcsNetworkError / GcsDataError según el fallo.
         """
         try:
-            exists = self._get_bucket().exists()
+            next(iter(self._get_client().list_blobs(self.config.bucket, max_results=1)), None)
         except (RefreshError, GoogleAuthError) as exc:
             raise GcsAuthError(
                 "No se pudo autenticar con la cuenta de servicio. Verifica que "
@@ -129,8 +129,6 @@ class GcsClient:
             raise _wrap_error(
                 exc, f"El bucket {self.config.bucket!r} no existe o no es accesible."
             ) from exc
-        if not exists:
-            raise GcsDataError(f"El bucket {self.config.bucket!r} no existe.")
         self._logger.info("Ping exitoso al bucket %s", self.config.bucket)
         return True
 
