@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ruvic-gcs-connector"
+version = "1.0.0"
+description = "Conector Ruvic para gestión de objetos en Google Cloud Storage"
+requires-python = ">=3.10"
+dependencies = [
+    "google-cloud-storage>=2.14,<3.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["ruvic_gcs_connector*"]

@@ -1,0 +1,55 @@
+{
+  "id": "gcs",
+  "name": "Google Cloud Storage",
+  "name_en": "Google Cloud Storage",
+  "version": "1.0.0",
+  "description": "Gestión de objetos en Google Cloud Storage: listar objetos, subir archivo y descargar archivo",
+  "description_en": "Manage objects in Google Cloud Storage: list objects, upload a file and download a file",
+  "icon": "icon.svg",
+  "category": "cloud",
+  "category_en": "cloud",
+  "keywords": ["gcs", "google cloud storage", "gcp", "google", "storage", "almacenamiento", "cloud", "nube", "objetos", "objects"],
+  "library": {
+    "package": "ruvic-gcs-connector",
+    "install": "pip install git+https://github.com/Dgirto/Google-Cloud-Storage.git#subdirectory=lib",
+    "import_name": "ruvic_gcs_connector"
+  },
+  "auth_modes": [
+    {
+      "id": "service_account",
+      "label": "Cuenta de servicio",
+      "fields": [
+        {
+          "key": "service_account_json",
+          "label": "JSON de la cuenta de servicio",
+          "type": "textarea",
+          "required": true,
+          "secret": true,
+          "help_text": "Contenido completo del archivo de credenciales JSON descargado desde Google Cloud Console (IAM y administración → Cuentas de servicio → Claves)."
+        },
+        {
+          "key": "bucket",
+          "label": "Bucket",
+          "type": "text",
+          "required": true,
+          "placeholder": "mi-bucket-produccion",
+          "help_text": "El conector opera sobre un único bucket. Restringe el rol IAM de la cuenta de servicio a este bucket cuando sea posible (principio de mínimo privilegio)."
+        },
+        {
+          "key": "connect_timeout",
+          "label": "Timeout de conexión (segundos)",
+          "type": "number",
+          "required": false,
+          "default": "10"
+        }
+      ]
+    }
+  ],
+  "env_prefix": "RUVIC_GCS_",
+  "operations": ["gcs.list_objects", "gcs.upload", "gcs.download"],
+  "test_connection": true,
+  "docs": {
+    "skill": "SKILL.md",
+    "permissions_note": "La cuenta de servicio necesita el rol 'Storage Object Viewer' (lectura) y 'Storage Object Creator' o 'Storage Object Admin' (escritura) sobre el bucket configurado. No se requieren roles de administración (Storage Admin a nivel de proyecto, eliminar buckets, cambiar políticas de acceso)."
+  }
+}

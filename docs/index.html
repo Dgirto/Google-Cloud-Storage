@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="doc_title">Conector Google Cloud Storage — Ruvic</title>
+  <link rel="stylesheet" href="assets/ruvic.css">
+</head>
+<body class="guide">
+  <main class="ruvic-container">
+
+    <nav class="ruvic-toc" aria-label="Índice">
+      <h2 data-i18n="toc_title">Contenido</h2>
+      <ol>
+        <li><a href="#que-es" data-i18n="toc.que_es">¿Qué es y para qué sirve?</a></li>
+        <li><a href="#prerrequisitos" data-i18n="toc.prerrequisitos">Prerrequisitos</a></li>
+        <li><a href="#configuracion-fabricante" data-i18n="toc.configuracion_fabricante">Configuración en el fabricante</a></li>
+        <li><a href="#permisos" data-i18n="toc.permisos">Permisos requeridos</a></li>
+        <li><a href="#configuracion-ruvic" data-i18n="toc.configuracion_ruvic">Configuración en Ruvic</a></li>
+        <li><a href="#verificacion" data-i18n="toc.verificacion">Verificación</a></li>
+        <li><a href="#solucion-problemas" data-i18n="toc.solucion_problemas">Solución de problemas</a></li>
+        <li><a href="#faq-seguridad" data-i18n="toc.faq_seguridad">Preguntas frecuentes y notas de seguridad</a></li>
+      </ol>
+    </nav>
+
+    <h1 data-i18n="guide_title">Google Cloud Storage</h1>
+    <p class="guide-updated">{{ULTIMA_ACTUALIZACION}}</p>
+
+    <!-- ============ 1. QUÉ ES ============ -->
+    <section>
+      <h2 id="que-es" data-i18n="section.que_es">¿Qué es y para qué sirve?</h2>
+      <p data-i18n="que_es.body">El conector Google Cloud Storage permite que el agente de Ruvic gestione objetos en un bucket específico de GCS. Una vez configurado, puedes pedirle al agente cosas como:</p>
+      <ul>
+        <li data-i18n="que_es.ej1">“Sube este reporte al bucket con el nombre reportes/julio-2026.csv.”</li>
+        <li data-i18n="que_es.ej2">“¿Qué archivos hay en la carpeta facturas/ del bucket?”</li>
+        <li data-i18n="que_es.ej3">“Descarga el archivo contrato.pdf y muéstrame su contenido.”</li>
+      </ul>
+      <p data-i18n="que_es.ops">Operaciones soportadas:</p>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.operacion">Operación</th>
+            <th data-i18n="table.que_hace">Qué hace</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>gcs.list_objects</code></td>
+            <td data-i18n="ops.list">Lista los objetos del bucket, con filtro por prefijo</td>
+          </tr>
+          <tr>
+            <td><code>gcs.upload</code></td>
+            <td data-i18n="ops.upload">Sube (o sobrescribe) contenido en una clave del bucket</td>
+          </tr>
+          <tr>
+            <td><code>gcs.download</code></td>
+            <td data-i18n="ops.download">Descarga el contenido de un objeto</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout callout-warning">
+        <span class="callout-title" data-i18n="que_es.callout.title">Este conector escribe</span>
+        <span data-i18n="que_es.callout.body">gcs.upload sobrescribe el objeto de la clave indicada. El conector opera sobre un único bucket; se recomienda que el rol IAM de la cuenta de servicio esté limitado a ese bucket específico.</span>
+      </div>
+    </section>
+
+    <!-- ============ 2. PRERREQUISITOS ============ -->
+    <section>
+      <h2 id="prerrequisitos" data-i18n="section.prerrequisitos">Prerrequisitos</h2>
+      <ul>
+        <li data-i18n="prer.cuenta">Un proyecto de <strong>Google Cloud</strong> con un bucket de Cloud Storage ya creado.</li>
+        <li data-i18n="prer.admin">Acceso a <strong>Google Cloud Console</strong> (IAM y administración) para crear una cuenta de servicio, solo durante la configuración inicial.</li>
+        <li data-i18n="prer.datos">El nombre del bucket a exponer.</li>
+      </ul>
+    </section>
+
+    <!-- ============ 3. CONFIGURACIÓN EN EL FABRICANTE ============ -->
+    <section>
+      <h2 id="configuracion-fabricante" data-i18n="section.configuracion_fabricante">Configuración en el fabricante</h2>
+      <p data-i18n="fab.intro">Vas a crear una <strong>cuenta de servicio dedicada</strong> para Ruvic, con roles limitados al bucket que quieres exponer. No reutilices una cuenta de servicio de otro conector ni la de un usuario.</p>
+      <ol class="ruvic-steps">
+        <li>
+          <strong data-i18n="fab.p1.t">Crea la cuenta de servicio.</strong>
+          <p data-i18n="fab.p1.b">En Google Cloud Console → IAM y administración → Cuentas de servicio → Crear cuenta de servicio. No le asignes ningún rol a nivel de proyecto todavía; los roles se otorgan a nivel de bucket en el siguiente paso.</p>
+        </li>
+        <li>
+          <strong data-i18n="fab.p2.t">Otorga los roles limitados al bucket.</strong>
+          <p data-i18n="fab.p2.b">Con gsutil (o desde la consola, en el bucket → Permisos → Otorgar acceso):</p>
+<pre><code>gsutil iam ch serviceAccount:ruvic-gcs@TU_PROYECTO.iam.gserviceaccount.com:roles/storage.objectViewer gs://mi-bucket-produccion
+gsutil iam ch serviceAccount:ruvic-gcs@TU_PROYECTO.iam.gserviceaccount.com:roles/storage.objectCreator gs://mi-bucket-produccion</code></pre>
+          <div class="callout callout-info">
+            <span class="callout-title" data-i18n="fab.p2.note.title">Nota</span>
+            <span data-i18n="fab.p2.note.body">Estos roles se otorgan sobre el bucket específico (gs://mi-bucket-produccion), no sobre todo el proyecto — así la cuenta de servicio solo puede acceder a ese bucket.</span>
+          </div>
+        </li>
+        <li>
+          <strong data-i18n="fab.p3.t">Descarga la clave JSON de la cuenta de servicio.</strong>
+          <p data-i18n="fab.p3.b">En la cuenta de servicio → pestaña "Claves" → "Agregar clave" → "Crear clave nueva" → tipo JSON. Se descarga un archivo — su contenido completo es lo que usarás en el formulario de Ruvic.</p>
+          <div class="screenshot-placeholder" data-i18n="fab.p3.img">[ Captura: creación de clave JSON de la cuenta de servicio — reemplazar por assets/img/gcs-service-account-key.png ]</div>
+        </li>
+        <li>
+          <strong data-i18n="fab.p4.t">Verifica el acceso desde la línea de comandos.</strong>
+          <p data-i18n="fab.p4.b">Con gcloud autenticado como esa cuenta de servicio:</p>
+<pre><code>gcloud auth activate-service-account --key-file=ruta/a/la/clave.json
+gsutil ls gs://mi-bucket-produccion</code></pre>
+          <p data-i18n="fab.p4.result">Si responde sin error (aunque el bucket esté vacío), el fabricante quedó listo. Anota estos valores para la siguiente sección: el contenido completo del JSON y el nombre del bucket.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ 4. PERMISOS ============ -->
+    <section>
+      <h2 id="permisos" data-i18n="section.permisos">Permisos requeridos</h2>
+      <p data-i18n="perm.intro">Principio de mínimo privilegio: la cuenta de servicio de Ruvic solo necesita estos roles, limitados al bucket configurado. No otorgues <code>roles/storage.admin</code> a nivel de proyecto ni <code>roles/owner</code>.</p>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.permiso">Rol</th>
+            <th data-i18n="table.para_que">Para qué sirve</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>roles/storage.objectViewer</code></td>
+            <td data-i18n="perm.viewer.body">Listar y descargar objetos (<code>gcs.list_objects</code>, <code>gcs.download</code>)</td>
+          </tr>
+          <tr>
+            <td><code>roles/storage.objectCreator</code></td>
+            <td data-i18n="perm.creator.body">Subir objetos (<code>gcs.upload</code>)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ 5. CONFIGURACIÓN EN RUVIC ============ -->
+    <section>
+      <h2 id="configuracion-ruvic" data-i18n="section.configuracion_ruvic">Configuración en Ruvic</h2>
+      <p data-i18n="ruvic.intro">Entra a <strong>Settings → Conectores</strong>, busca la tarjeta <strong>Google Cloud Storage</strong> y pulsa <strong>Configurar</strong>. Diligencia el formulario con los valores que obtuviste en la sección anterior:</p>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.campo">Campo del formulario</th>
+            <th data-i18n="table.valor">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="ruvic.f.json">JSON de la cuenta de servicio</td>
+            <td data-i18n="ruvic.v.json">Pega el contenido completo del archivo descargado en el paso 3, sin modificarlo</td>
+          </tr>
+          <tr>
+            <td data-i18n="ruvic.f.bucket">Bucket</td>
+            <td data-i18n="ruvic.v.bucket">Nombre del bucket configurado en el paso 2</td>
+          </tr>
+          <tr>
+            <td data-i18n="ruvic.f.timeout">Timeout de conexión</td>
+            <td data-i18n="ruvic.v.timeout">Opcional; <code>10</code> segundos por defecto</td>
+          </tr>
+        </tbody>
+      </table>
+      <p data-i18n="ruvic.save">Guarda y pulsa <span class="ruvic-button">Probar conexión</span> — la plataforma verificará el acceso al bucket configurado.</p>
+      <div class="screenshot-placeholder" data-i18n="ruvic.img">[ Captura: formulario del conector Google Cloud Storage en Settings → Conectores — reemplazar por assets/img/gcs-form.png ]</div>
+    </section>
+
+    <!-- ============ 6. VERIFICACIÓN ============ -->
+    <section>
+      <h2 id="verificacion" data-i18n="section.verificacion">Verificación</h2>
+      <ol class="ruvic-steps">
+        <li>
+          <strong data-i18n="ver.p1.t">Test de conexión exitoso.</strong>
+          <p data-i18n="ver.p1.b">El botón <em>Probar conexión</em> debe responder: <em>“Conexión exitosa al bucket 'mi-bucket-produccion'”</em>. La tarjeta del conector cambia a estado <strong>Configurado</strong>.</p>
+        </li>
+        <li>
+          <strong data-i18n="ver.p2.t">Automatización mínima de prueba.</strong>
+          <p data-i18n="ver.p2.b">Abre una conversación nueva con el agente y pídele: <em>“Sube un archivo de prueba al bucket con el texto 'hola mundo' y luego dime qué archivos hay.”</em> El agente debe subir el objeto y listarlo de vuelta. Si lo hace, el conector quedó operativo de punta a punta.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ 7. SOLUCIÓN DE PROBLEMAS ============ -->
+    <section>
+      <h2 id="solucion-problemas" data-i18n="section.solucion_problemas">Solución de problemas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.sintoma">Mensaje / síntoma</th>
+            <th data-i18n="table.causa">Causa probable y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="prob.s1">“No se pudo autenticar con la cuenta de servicio”</td>
+            <td data-i18n="prob.c1">El JSON pegado en el formulario está incompleto o corrupto. Vuelve a copiar el archivo completo del paso 3 de la sección 3, sin recortar ni modificar su contenido.</td>
+          </tr>
+          <tr>
+            <td data-i18n="prob.s2">“El bucket no existe o no es accesible”</td>
+            <td data-i18n="prob.c2">Nombre de bucket mal escrito en el formulario, o la cuenta de servicio no tiene el rol otorgado sobre ese bucket. Reintenta el paso 2 de la sección 3.</td>
+          </tr>
+          <tr>
+            <td data-i18n="prob.s3">El agente lista objetos pero falla al descargar uno</td>
+            <td data-i18n="prob.c3">Falta el rol storage.objectViewer, o el nombre del objeto tiene mayúsculas/espacios distintos a los mostrados.</td>
+          </tr>
+          <tr>
+            <td data-i18n="prob.s4">“Google Cloud Storage no respondió correctamente”</td>
+            <td data-i18n="prob.c4">Puede ser un límite de cuota temporal de la API; reintenta en unos segundos. Si persiste, verifica que la Cloud Storage API esté habilitada en el proyecto.</td>
+          </tr>
+          <tr>
+            <td data-i18n="prob.s5">El conector aparece “Sin configurar” tras guardar</td>
+            <td data-i18n="prob.c5">Algún campo obligatorio quedó vacío. Ábrelo de nuevo y completa el JSON de la cuenta de servicio y el nombre del bucket.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ 8. FAQ Y SEGURIDAD ============ -->
+    <section>
+      <h2 id="faq-seguridad" data-i18n="section.faq_seguridad">Preguntas frecuentes y notas de seguridad</h2>
+
+      <h3 data-i18n="faq.q1">¿El agente puede acceder a otros buckets de mi proyecto?</h3>
+      <p data-i18n="faq.a1">No, si los roles se otorgaron a nivel de bucket específico (ver sección 3), no a nivel de proyecto. Con roles.storage.objectViewer/objectCreator otorgados solo sobre gs://mi-bucket-produccion, la cuenta de servicio no puede ver ni escribir en otros buckets.</p>
+
+      <h3 data-i18n="faq.q2">¿Dónde queda guardado el JSON de la cuenta de servicio?</h3>
+      <p data-i18n="faq.a2">Como secreto en el almacén de credenciales de la plataforma, asociado a tu usuario. La interfaz nunca vuelve a mostrarlo; solo indica “definida”. Para cambiarlo, pega uno nuevo en el formulario; para conservarlo al editar otros campos, deja el campo vacío.</p>
+
+      <h3 data-i18n="faq.q3">Rotación de credenciales</h3>
+      <p data-i18n="faq.a3">Recomendado cada 90 días o según tu política: crea una clave nueva en Google Cloud Console (la cuenta de servicio puede tener varias claves activas), actualízala en el formulario del conector, prueba la conexión, y luego elimina la clave anterior.</p>
+
+      <h3 data-i18n="faq.q4">¿Qué hago si las credenciales se comprometen?</h3>
+      <ol>
+        <li data-i18n="faq.a4.li1">Elimina (o deshabilita) la clave comprometida de inmediato en Google Cloud Console → Cuentas de servicio → Claves.</li>
+        <li data-i18n="faq.a4.li2">Revisa los Cloud Audit Logs para actividad reciente de esa cuenta de servicio.</li>
+        <li data-i18n="faq.a4.li3">Genera una clave nueva y actualízala en el formulario del conector.</li>
+      </ol>
+
+      <h3 data-i18n="faq.q5">¿Expiran las credenciales?</h3>
+      <p data-i18n="faq.a5">Por defecto no (las claves de cuenta de servicio de GCP no expiran solas). Si tu organización exige rotación forzosa, puedes configurar una política de organización con antigüedad máxima de claves.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-title" data-i18n="faq.bp.title">Buenas prácticas</span>
+        <span data-i18n="faq.bp.body">Usa siempre una cuenta de servicio dedicada con roles limitados a un único bucket; nunca uses una cuenta de usuario o una clave con roles de proyecto; no expongas buckets con datos sensibles que el agente no necesite; y evita compartir el JSON de credenciales por canales no seguros.</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const I18N = {
+      es: {
+        doc_title: "Conector Google Cloud Storage — Ruvic",
+        toc_title: "Contenido",
+        "toc.que_es": "¿Qué es y para qué sirve?",
+        "toc.prerrequisitos": "Prerrequisitos",
+        "toc.configuracion_fabricante": "Configuración en el fabricante",
+        "toc.permisos": "Permisos requeridos",
+        "toc.configuracion_ruvic": "Configuración en Ruvic",
+        "toc.verificacion": "Verificación",
+        "toc.solucion_problemas": "Solución de problemas",
+        "toc.faq_seguridad": "Preguntas frecuentes y notas de seguridad",
+        guide_title: "Google Cloud Storage",
+        "section.que_es": "¿Qué es y para qué sirve?",
+        "que_es.body": "El conector Google Cloud Storage permite que el agente de Ruvic gestione objetos en un bucket específico de GCS. Una vez configurado, puedes pedirle al agente cosas como:",
+        "que_es.ej1": "“Sube este reporte al bucket con el nombre reportes/julio-2026.csv.”",
+        "que_es.ej2": "“¿Qué archivos hay en la carpeta facturas/ del bucket?”",
+        "que_es.ej3": "“Descarga el archivo contrato.pdf y muéstrame su contenido.”",
+        "que_es.ops": "Operaciones soportadas:",
+        "table.operacion": "Operación",
+        "table.que_hace": "Qué hace",
+        "ops.list": "Lista los objetos del bucket, con filtro por prefijo",
+        "ops.upload": "Sube (o sobrescribe) contenido en una clave del bucket",
+        "ops.download": "Descarga el contenido de un objeto",
+        "que_es.callout.title": "Este conector escribe",
+        "que_es.callout.body": "gcs.upload sobrescribe el objeto de la clave indicada. El conector opera sobre un único bucket; se recomienda que el rol IAM de la cuenta de servicio esté limitado a ese bucket específico.",
+        "section.prerrequisitos": "Prerrequisitos",
+        "prer.cuenta": "Un proyecto de Google Cloud con un bucket de Cloud Storage ya creado.",
+        "prer.admin": "Acceso a Google Cloud Console (IAM y administración) para crear una cuenta de servicio, solo durante la configuración inicial.",
+        "prer.datos": "El nombre del bucket a exponer.",
+        "section.configuracion_fabricante": "Configuración en el fabricante",
+        "fab.intro": "Vas a crear una cuenta de servicio dedicada para Ruvic, con roles limitados al bucket que quieres exponer. No reutilices una cuenta de servicio de otro conector ni la de un usuario.",
+        "fab.p1.t": "Crea la cuenta de servicio.",
+        "fab.p1.b": "En Google Cloud Console → IAM y administración → Cuentas de servicio → Crear cuenta de servicio. No le asignes ningún rol a nivel de proyecto todavía; los roles se otorgan a nivel de bucket en el siguiente paso.",
+        "fab.p2.t": "Otorga los roles limitados al bucket.",
+        "fab.p2.b": "Con gsutil (o desde la consola, en el bucket → Permisos → Otorgar acceso):",
+        "fab.p2.note.title": "Nota",
+        "fab.p2.note.body": "Estos roles se otorgan sobre el bucket específico (gs://mi-bucket-produccion), no sobre todo el proyecto — así la cuenta de servicio solo puede acceder a ese bucket.",
+        "fab.p3.t": "Descarga la clave JSON de la cuenta de servicio.",
+        "fab.p3.b": "En la cuenta de servicio → pestaña \"Claves\" → \"Agregar clave\" → \"Crear clave nueva\" → tipo JSON. Se descarga un archivo — su contenido completo es lo que usarás en el formulario de Ruvic.",
+        "fab.p3.img": "[ Captura: creación de clave JSON de la cuenta de servicio — reemplazar por assets/img/gcs-service-account-key.png ]",
+        "fab.p4.t": "Verifica el acceso desde la línea de comandos.",
+        "fab.p4.b": "Con gcloud autenticado como esa cuenta de servicio:",
+        "fab.p4.result": "Si responde sin error (aunque el bucket esté vacío), el fabricante quedó listo. Anota estos valores para la siguiente sección: el contenido completo del JSON y el nombre del bucket.",
+        "section.permisos": "Permisos requeridos",
+        "perm.intro": "Principio de mínimo privilegio: la cuenta de servicio de Ruvic solo necesita estos roles, limitados al bucket configurado. No otorgues roles/storage.admin a nivel de proyecto ni roles/owner.",
+        "table.permiso": "Rol",
+        "table.para_que": "Para qué sirve",
+        "perm.viewer.body": "Listar y descargar objetos (gcs.list_objects, gcs.download)",
+        "perm.creator.body": "Subir objetos (gcs.upload)",
+        "section.configuracion_ruvic": "Configuración en Ruvic",
+        "ruvic.intro": "Entra a Settings → Conectores, busca la tarjeta Google Cloud Storage y pulsa Configurar. Diligencia el formulario con los valores que obtuviste en la sección anterior:",
+        "table.campo": "Campo del formulario",
+        "table.valor": "Valor",
+        "ruvic.f.json": "JSON de la cuenta de servicio",
+        "ruvic.v.json": "Pega el contenido completo del archivo descargado en el paso 3, sin modificarlo",
+        "ruvic.f.bucket": "Bucket",
+        "ruvic.v.bucket": "Nombre del bucket configurado en el paso 2",
+        "ruvic.f.timeout": "Timeout de conexión",
+        "ruvic.v.timeout": "Opcional; 10 segundos por defecto",
+        "ruvic.save": "Guarda y pulsa Probar conexión — la plataforma verificará el acceso al bucket configurado.",
+        "ruvic.img": "[ Captura: formulario del conector Google Cloud Storage en Settings → Conectores — reemplazar por assets/img/gcs-form.png ]",
+        "section.verificacion": "Verificación",
+        "ver.p1.t": "Test de conexión exitoso.",
+        "ver.p1.b": "El botón Probar conexión debe responder: “Conexión exitosa al bucket 'mi-bucket-produccion'”. La tarjeta del conector cambia a estado Configurado.",
+        "ver.p2.t": "Automatización mínima de prueba.",
+        "ver.p2.b": "Abre una conversación nueva con el agente y pídele: “Sube un archivo de prueba al bucket con el texto 'hola mundo' y luego dime qué archivos hay.” El agente debe subir el objeto y listarlo de vuelta. Si lo hace, el conector quedó operativo de punta a punta.",
+        "section.solucion_problemas": "Solución de problemas",
+        "table.sintoma": "Mensaje / síntoma",
+        "table.causa": "Causa probable y solución",
+        "prob.s1": "“No se pudo autenticar con la cuenta de servicio”",
+        "prob.c1": "El JSON pegado en el formulario está incompleto o corrupto. Vuelve a copiar el archivo completo del paso 3 de la sección 3, sin recortar ni modificar su contenido.",
+        "prob.s2": "“El bucket no existe o no es accesible”",
+        "prob.c2": "Nombre de bucket mal escrito en el formulario, o la cuenta de servicio no tiene el rol otorgado sobre ese bucket. Reintenta el paso 2 de la sección 3.",
+        "prob.s3": "El agente lista objetos pero falla al descargar uno",
+        "prob.c3": "Falta el rol storage.objectViewer, o el nombre del objeto tiene mayúsculas/espacios distintos a los mostrados.",
+        "prob.s4": "“Google Cloud Storage no respondió correctamente”",
+        "prob.c4": "Puede ser un límite de cuota temporal de la API; reintenta en unos segundos. Si persiste, verifica que la Cloud Storage API esté habilitada en el proyecto.",
+        "prob.s5": "El conector aparece “Sin configurar” tras guardar",
+        "prob.c5": "Algún campo obligatorio quedó vacío. Ábrelo de nuevo y completa el JSON de la cuenta de servicio y el nombre del bucket.",
+        "section.faq_seguridad": "Preguntas frecuentes y notas de seguridad",
+        "faq.q1": "¿El agente puede acceder a otros buckets de mi proyecto?",
+        "faq.a1": "No, si los roles se otorgaron a nivel de bucket específico (ver sección 3), no a nivel de proyecto. Con roles.storage.objectViewer/objectCreator otorgados solo sobre gs://mi-bucket-produccion, la cuenta de servicio no puede ver ni escribir en otros buckets.",
+        "faq.q2": "¿Dónde queda guardado el JSON de la cuenta de servicio?",
+        "faq.a2": "Como secreto en el almacén de credenciales de la plataforma, asociado a tu usuario. La interfaz nunca vuelve a mostrarlo; solo indica “definida”. Para cambiarlo, pega uno nuevo en el formulario; para conservarlo al editar otros campos, deja el campo vacío.",
+        "faq.q3": "Rotación de credenciales",
+        "faq.a3": "Recomendado cada 90 días o según tu política: crea una clave nueva en Google Cloud Console (la cuenta de servicio puede tener varias claves activas), actualízala en el formulario del conector, prueba la conexión, y luego elimina la clave anterior.",
+        "faq.q4": "¿Qué hago si las credenciales se comprometen?",
+        "faq.a4.li1": "Elimina (o deshabilita) la clave comprometida de inmediato en Google Cloud Console → Cuentas de servicio → Claves.",
+        "faq.a4.li2": "Revisa los Cloud Audit Logs para actividad reciente de esa cuenta de servicio.",
+        "faq.a4.li3": "Genera una clave nueva y actualízala en el formulario del conector.",
+        "faq.q5": "¿Expiran las credenciales?",
+        "faq.a5": "Por defecto no (las claves de cuenta de servicio de GCP no expiran solas). Si tu organización exige rotación forzosa, puedes configurar una política de organización con antigüedad máxima de claves.",
+        "faq.bp.title": "Buenas prácticas",
+        "faq.bp.body": "Usa siempre una cuenta de servicio dedicada con roles limitados a un único bucket; nunca uses una cuenta de usuario o una clave con roles de proyecto; no expongas buckets con datos sensibles que el agente no necesite; y evita compartir el JSON de credenciales por canales no seguros.",
+      },
+      en: {
+        doc_title: "Google Cloud Storage Connector — Ruvic",
+        toc_title: "Contents",
+        "toc.que_es": "What it is and what it’s for",
+        "toc.prerrequisitos": "Prerequisites",
+        "toc.configuracion_fabricante": "Vendor / provider setup",
+        "toc.permisos": "Required permissions",
+        "toc.configuracion_ruvic": "Configuration in Ruvic",
+        "toc.verificacion": "Verification",
+        "toc.solucion_problemas": "Troubleshooting",
+        "toc.faq_seguridad": "FAQ and security notes",
+        guide_title: "Google Cloud Storage",
+        "section.que_es": "What it is and what it’s for",
+        "que_es.body": "The Google Cloud Storage connector lets the Ruvic agent manage objects in a specific GCS bucket. Once configured, you can ask the agent things like:",
+        "que_es.ej1": "“Upload this report to the bucket as reportes/julio-2026.csv.”",
+        "que_es.ej2": "“What files are in the facturas/ folder of the bucket?”",
+        "que_es.ej3": "“Download contrato.pdf and show me its content.”",
+        "que_es.ops": "Supported operations:",
+        "table.operacion": "Operation",
+        "table.que_hace": "What it does",
+        "ops.list": "Lists the bucket's objects, with prefix filtering",
+        "ops.upload": "Uploads (or overwrites) content at a bucket key",
+        "ops.download": "Downloads an object's content",
+        "que_es.callout.title": "This connector writes",
+        "que_es.callout.body": "gcs.upload overwrites the object at the given key. The connector operates on a single bucket; the service account's IAM role should be limited to that specific bucket.",
+        "section.prerrequisitos": "Prerequisites",
+        "prer.cuenta": "A Google Cloud project with a Cloud Storage bucket already created.",
+        "prer.admin": "Access to Google Cloud Console (IAM & Admin) to create a service account, only during initial setup.",
+        "prer.datos": "The name of the bucket to expose.",
+        "section.configuracion_fabricante": "Vendor / provider setup",
+        "fab.intro": "You will create a dedicated service account for Ruvic, with roles limited to the bucket you want to expose. Do not reuse a service account from another connector or a user's account.",
+        "fab.p1.t": "Create the service account.",
+        "fab.p1.b": "In Google Cloud Console → IAM & Admin → Service Accounts → Create Service Account. Don't assign any project-level role yet; roles are granted at the bucket level in the next step.",
+        "fab.p2.t": "Grant bucket-scoped roles.",
+        "fab.p2.b": "With gsutil (or from the console, on the bucket → Permissions → Grant access):",
+        "fab.p2.note.title": "Note",
+        "fab.p2.note.body": "These roles are granted on the specific bucket (gs://mi-bucket-produccion), not the whole project — so the service account can only access that bucket.",
+        "fab.p3.t": "Download the service account's JSON key.",
+        "fab.p3.b": "On the service account → \"Keys\" tab → \"Add key\" → \"Create new key\" → JSON type. A file downloads — its full content is what you'll use in the Ruvic form.",
+        "fab.p3.img": "[ Screenshot: service account JSON key creation — replace with assets/img/gcs-service-account-key.png ]",
+        "fab.p4.t": "Verify access from the command line.",
+        "fab.p4.b": "With gcloud authenticated as that service account:",
+        "fab.p4.result": "If it responds without error (even with an empty bucket), the vendor side is ready. Write down these values for the next section: the full JSON content and the bucket name.",
+        "section.permisos": "Required permissions",
+        "perm.intro": "Least-privilege principle: the Ruvic service account only needs these roles, limited to the configured bucket. Do not grant roles/storage.admin at the project level or roles/owner.",
+        "table.permiso": "Role",
+        "table.para_que": "Why it's needed",
+        "perm.viewer.body": "List and download objects (gcs.list_objects, gcs.download)",
+        "perm.creator.body": "Upload objects (gcs.upload)",
+        "section.configuracion_ruvic": "Configuration in Ruvic",
+        "ruvic.intro": "Go to Settings → Connectors, find the Google Cloud Storage card and click Configure. Fill in the form with the values from the previous section:",
+        "table.campo": "Form field",
+        "table.valor": "Value",
+        "ruvic.f.json": "Service account JSON",
+        "ruvic.v.json": "Paste the full content of the file downloaded in step 3, unmodified",
+        "ruvic.f.bucket": "Bucket",
+        "ruvic.v.bucket": "Name of the bucket configured in step 2",
+        "ruvic.f.timeout": "Connection timeout",
+        "ruvic.v.timeout": "Optional; defaults to 10 seconds",
+        "ruvic.save": "Save and click Test connection — the platform will verify access to the configured bucket.",
+        "ruvic.img": "[ Screenshot: Google Cloud Storage connector form in Settings → Connectors — replace with assets/img/gcs-form.png ]",
+        "section.verificacion": "Verification",
+        "ver.p1.t": "Successful connection test.",
+        "ver.p1.b": "The Test connection button should return: “Successful connection to bucket 'mi-bucket-produccion'”. The connector card switches to Configured.",
+        "ver.p2.t": "Minimal test automation.",
+        "ver.p2.b": "Open a new conversation with the agent and ask: “Upload a test file to the bucket with the text 'hola mundo' and then tell me what files are there.” The agent should upload the object and list it back. If it does, the connector is fully operational.",
+        "section.solucion_problemas": "Troubleshooting",
+        "table.sintoma": "Message / symptom",
+        "table.causa": "Likely cause and fix",
+        "prob.s1": "“Could not authenticate with the service account”",
+        "prob.c1": "The JSON pasted into the form is incomplete or corrupted. Copy the full file from step 3 of section 3 again, without trimming or modifying its content.",
+        "prob.s2": "“The bucket does not exist or is not accessible”",
+        "prob.c2": "Bucket name mistyped in the form, or the service account doesn't have the role granted on that bucket. Redo step 2 of section 3.",
+        "prob.s3": "The agent lists objects but fails downloading one",
+        "prob.c3": "Missing the storage.objectViewer role, or the object name has different casing/spacing than shown.",
+        "prob.s4": "“Google Cloud Storage did not respond correctly”",
+        "prob.c4": "May be a temporary API quota limit; retry in a few seconds. If it persists, verify the Cloud Storage API is enabled on the project.",
+        "prob.s5": "Connector shows “Not configured” after saving",
+        "prob.c5": "A required field was left empty. Open it again and fill in the service account JSON and the bucket name.",
+        "section.faq_seguridad": "FAQ and security notes",
+        "faq.q1": "Can the agent access other buckets in my project?",
+        "faq.a1": "No, if the roles were granted at the specific bucket level (see section 3), not the project level. With storage.objectViewer/objectCreator granted only on gs://mi-bucket-produccion, the service account cannot read or write to other buckets.",
+        "faq.q2": "Where is the service account JSON stored?",
+        "faq.a2": "As a secret in the platform's credential store, tied to your user. The UI never displays it again; it only shows “set”. To change it, paste a new one in the form; to keep it while editing other fields, leave the field empty.",
+        "faq.q3": "Credential rotation",
+        "faq.a3": "Recommended every 90 days or per your policy: create a new key in Google Cloud Console (the service account can have multiple active keys), update it in the connector form, test the connection, then delete the old key.",
+        "faq.q4": "What if the credentials are compromised?",
+        "faq.a4.li1": "Delete (or disable) the compromised key immediately in Google Cloud Console → Service Accounts → Keys.",
+        "faq.a4.li2": "Review Cloud Audit Logs for recent activity from that service account.",
+        "faq.a4.li3": "Generate a new key and update it in the connector form.",
+        "faq.q5": "Do the credentials expire?",
+        "faq.a5": "By default no (GCP service account keys don't expire on their own). If your organization requires forced rotation, you can set an organization policy with a maximum key age.",
+        "faq.bp.title": "Best practices",
+        "faq.bp.body": "Always use a dedicated service account with roles limited to a single bucket; never use a user account or a key with project-level roles; do not expose buckets with sensitive data the agent doesn't need; and never share the credentials JSON over insecure channels.",
+      },
+    };
+    /* El portal aplica el idioma del usuario (localStorage ruvic-docs-lang)
+       y actualiza [data-i18n], [data-i18n-placeholder] y [data-i18n-alt]. */
+  </script>
+</body>
+</html>
