@@ -1,5 +1,5 @@
 ---
-name: google-cloud-storage
+name: gcs
 description: >
   Usa la librería ruvic_gcs_connector para gestionar objetos en un bucket
   de Google Cloud Storage - listar objetos con prefijo (list_objects),
